@@ -1,11 +1,11 @@
 import Controller from "./controller";
 import Event from "./event";
-import Middleware from "./middleware";
+import Handler from "./handler";
 
 
 type RouterBuild = {
     middlewares?: {
-        [eventType: string]: Middleware
+        [eventType: string]: Handler
     },
     controllers?: {
         [eventType: string]: Controller
@@ -14,10 +14,10 @@ type RouterBuild = {
 
 
 export default class Router {
-    public middlewares = new Map<string, Middleware[]>();
+    public middlewares = new Map<string, Handler[]>();
     public controllers = new Map<string, Controller[]>(); 
 
-    public addMiddlewares(eventType: string | string[], middleware: Middleware) {
+    public addMiddlewares(eventType: string | string[], middleware: Handler) {
         if (eventType instanceof Array) {
             for (let type of eventType) {
                 let existing = this.middlewares[type];
@@ -64,10 +64,11 @@ export default class Router {
         let middlewares = this.middlewares.get(event.type) || [];
         let controllers = this.controllers.get(event.type) || [];
         for (let middleware of middlewares) {
+            if (event.closed) return;
             event = await middleware.handle(event);
         }
         for (let controller of controllers) {
-            controller.handle(event);
+            controller.use(event);
         }
     }
 }
@@ -75,7 +76,7 @@ export default class Router {
 export class RouterWrapper {
     public router = new Router();
 
-    public addMiddlewares(eventType: string | string[], middleware: Middleware) {
+    public addMiddlewares(eventType: string | string[], middleware: Handler) {
         this.router.addMiddlewares(eventType, middleware);
     }
 
